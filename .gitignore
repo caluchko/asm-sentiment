@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+*.whl
+
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# Claude Code settings (local only)
+.claude/
+
+# Generated export artefacts (regenerate locally with scripts/)
+exports/
+
+# Editor
+.vscode/
+.idea/
