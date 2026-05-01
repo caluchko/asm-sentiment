@@ -9,6 +9,9 @@ appends a trailing space after every filter value, which GDELT rejects with
 a 429. We use the library's whitelisted User-Agent but build URLs ourselves.
 """
 
+from __future__ import annotations
+
+import glob
 import os
 import time
 import logging
@@ -250,7 +253,6 @@ def load_or_fetch(name: str, fetch_fn, *args, **kwargs) -> tuple[pd.DataFrame, b
 
 def clear_parquet_cache() -> int:
     """Delete all parquet files in CACHE_DIR. Returns the count deleted."""
-    import glob
     files = glob.glob(os.path.join(CACHE_DIR, "*.parquet"))
     for f in files:
         os.remove(f)

@@ -7,6 +7,8 @@ Expected column names (from data_collection.py live API output):
   country_df: datetime, <country_name>, ... (one column per country)
 """
 
+from __future__ import annotations
+
 import pandas as pd
 
 
