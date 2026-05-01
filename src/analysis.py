@@ -51,7 +51,7 @@ def compute_annual_summary(
 
     if volume_df is not None:
         vdf = volume_df.copy()
-        vdf["year"] = pd.to_datetime(vdf["datetime"]).dt.year
+        vdf["year"] = vdf["datetime"].dt.year
         vol_annual = vdf.groupby("year")[COUNT_COL].sum().rename("total_articles")
         annual = annual.join(vol_annual)
 
@@ -64,14 +64,14 @@ def identify_tone_shifts(
     threshold: float = 1.5,
 ) -> pd.DataFrame:
     """
-    Return rows where the daily tone deviates significantly from the
-    90-day rolling mean (more than threshold * rolling stdev).
+    Return rows where the daily tone deviates significantly from the rolling mean.
+    Significance is defined as: |deviation| > threshold * global_stdev(all deviations).
     Useful for finding candidate dates to annotate on the chart.
     """
     df = compute_rolling_sentiment(tone_df.copy(), window=rolling_window)
     df["deviation"] = df[TONE_COL] - df["tone_rolling"]
-    rolling_std = df["deviation"].std()
-    df["significant_shift"] = df["deviation"].abs() > (rolling_std * threshold)
+    global_std = df["deviation"].std()
+    df["significant_shift"] = df["deviation"].abs() > (global_std * threshold)
     return df[df["significant_shift"]].copy()
 
 
@@ -84,12 +84,11 @@ def normalise_volume(volume_df: pd.DataFrame) -> pd.DataFrame:
     Add a 'articles_per_100k' column: matching articles as a fraction of
     the total GDELT corpus that day, scaled to per-100k articles.
     This corrects for GDELT's expanding source base over time.
+    Days where the corpus total is zero are left as NaN (data gap).
     """
     df = volume_df.copy().sort_values("datetime").reset_index(drop=True)
-    df["articles_per_100k"] = df.apply(
-        lambda row: (row[COUNT_COL] / row[TOTAL_COL] * 100_000)
-        if row[TOTAL_COL] > 0 else 0,
-        axis=1,
+    df["articles_per_100k"] = (
+        df[COUNT_COL] / df[TOTAL_COL].replace(0, float("nan")) * 100_000
     )
     return df
 
@@ -119,9 +118,11 @@ def build_annual_comparison(theme_dfs: dict[str, pd.DataFrame]) -> pd.DataFrame:
     """
     Given a dict of {label: tone_df}, return a tidy DataFrame with columns
     [year, theme, mean_tone] suitable for a grouped bar chart.
-    Only includes years where ALL themes have data.
+    Only includes years where ALL themes have data, so every bar in a given
+    year represents the same set of themes (no misleading partial groups).
     """
     rows = []
+    year_sets: list[set] = []
     for label, df in theme_dfs.items():
         if df.empty:
             continue
@@ -131,9 +132,16 @@ def build_annual_comparison(theme_dfs: dict[str, pd.DataFrame]) -> pd.DataFrame:
         annual.columns = ["year", "mean_tone"]
         annual["theme"] = label
         rows.append(annual)
+        year_sets.append(set(annual["year"]))
     if not rows:
         return pd.DataFrame(columns=["year", "theme", "mean_tone"])
-    return pd.concat(rows, ignore_index=True).sort_values(["year", "theme"])
+    common_years = set.intersection(*year_sets)
+    combined = pd.concat(rows, ignore_index=True)
+    return (
+        combined[combined["year"].isin(common_years)]
+        .sort_values(["year", "theme"])
+        .reset_index(drop=True)
+    )
 
 
 def melt_country_df(

@@ -21,6 +21,7 @@ from data_collection import (
     collect_all_data,
     get_tone_timeline,
     load_cached,
+    clear_parquet_cache,
 )
 
 # ---------------------------------------------------------------------------
@@ -74,6 +75,7 @@ with st.sidebar:
 
     st.divider()
     if st.button("Refresh data from GDELT", type="secondary"):
+        clear_parquet_cache()
         st.cache_data.clear()
         st.rerun()
 

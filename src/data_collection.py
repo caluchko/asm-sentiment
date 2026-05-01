@@ -233,15 +233,30 @@ def load_cached(name: str) -> pd.DataFrame | None:
     return None
 
 
-def load_or_fetch(name: str, fetch_fn, *args, **kwargs) -> pd.DataFrame:
-    """Return cached result if available, otherwise call fetch_fn and cache it."""
+def load_or_fetch(name: str, fetch_fn, *args, **kwargs) -> tuple[pd.DataFrame, bool]:
+    """
+    Return (df, fetched_from_api). Loads from parquet cache when available;
+    otherwise calls fetch_fn, caches the result, and returns fetched_from_api=True.
+    Empty DataFrames are never cached (avoids masking real failures).
+    """
     cached = load_cached(name)
     if cached is not None:
-        return cached
+        return cached, False
     df = fetch_fn(*args, **kwargs)
     if not df.empty:
         cache_result(df, name)
-    return df
+    return df, True
+
+
+def clear_parquet_cache() -> int:
+    """Delete all parquet files in CACHE_DIR. Returns the count deleted."""
+    import glob
+    files = glob.glob(os.path.join(CACHE_DIR, "*.parquet"))
+    for f in files:
+        os.remove(f)
+        logger.info("Deleted cache file: %s", f)
+    logger.info("Cleared %d cached parquet files.", len(files))
+    return len(files)
 
 
 # ---------------------------------------------------------------------------
@@ -258,12 +273,14 @@ def collect_all_data() -> dict[str, pd.DataFrame]:
 
     def _run(name: str, fn, *args, **kwargs) -> None:
         try:
-            df = load_or_fetch(name, fn, *args, **kwargs)
+            df, fetched = load_or_fetch(name, fn, *args, **kwargs)
         except Exception as exc:
             logger.warning("Skipping %s — fetch failed: %s", name, exc)
             df = pd.DataFrame()
+            fetched = False
         results[name] = df
-        time.sleep(REQUEST_DELAY)
+        if fetched:
+            time.sleep(REQUEST_DELAY)
 
     logger.info("=== Starting ASGM data collection ===")
 
@@ -280,12 +297,7 @@ def collect_all_data() -> dict[str, pd.DataFrame]:
         safe = theme_id.lower()
         _run(f"tone_cmp_{safe}", get_tone_timeline, theme=theme_id)
 
-    try:
-        df = load_or_fetch("recent_articles", get_recent_articles, theme=primary)
-    except Exception as exc:
-        logger.warning("Skipping recent_articles — fetch failed: %s", exc)
-        df = pd.DataFrame()
-    results["recent_articles"] = df
+    _run("recent_articles", get_recent_articles, theme=primary)
 
     logger.info("=== Collection complete: %d datasets ===", len(results))
     return results
