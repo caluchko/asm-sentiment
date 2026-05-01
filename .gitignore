@@ -18,8 +18,10 @@ env/
 .DS_Store
 .AppleDouble
 
-# Claude Code settings (local only)
+# Claude Code settings and internal planning docs (local only)
 .claude/
+CLAUDE.md
+asgm-sentiment-plan.md
 
 # Generated export artefacts (regenerate locally with scripts/)
 exports/
