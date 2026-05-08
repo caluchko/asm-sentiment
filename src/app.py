@@ -81,7 +81,7 @@ with st.sidebar:
 
     st.caption(
         "Data is cached locally for 24 hours. "
-        "Refresh pulls fresh data from the GDELT DOC API (~60 s)."
+        "Refresh pulls fresh data from the GDELT DOC API (~2–3 min)."
     )
 
 with st.spinner("Loading data (first run fetches from GDELT — may take ~60 s)…"):

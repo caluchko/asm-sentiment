@@ -1,4 +1,5 @@
 from datetime import date
+from pathlib import Path
 
 # GDELT GKG themes relevant to ASGM
 THEMES = {
@@ -48,8 +49,9 @@ ASGM_COUNTRIES = [
     "BR",  # Brazil
 ]
 
-# Local directory for cached query results
-CACHE_DIR = "data"
+# Local directory for cached query results (anchored to project root so it
+# resolves correctly regardless of CWD).
+CACHE_DIR = str(Path(__file__).resolve().parent.parent / "data")
 
 # Seconds to sleep between API requests to respect rate limits
 REQUEST_DELAY = 6
